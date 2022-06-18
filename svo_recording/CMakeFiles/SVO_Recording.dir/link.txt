@@ -1,0 +1,1 @@
+/usr/bin/c++  -O2 -g -DNDEBUG  -rdynamic CMakeFiles/SVO_Recording.dir/main.o  -o SVO_Recording  -L/usr/local/zed/lib -Wl,-rpath,/usr/local/zed/lib:/usr/local/cuda-10.2/lib64 /usr/local/zed/lib/libsl_zed.so -lopenblas -lusb-1.0 -lcuda /usr/local/cuda-10.2/lib64/libcudart.so 

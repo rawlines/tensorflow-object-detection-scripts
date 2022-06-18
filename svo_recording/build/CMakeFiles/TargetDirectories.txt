@@ -1,0 +1,3 @@
+/home/smartwater/Documentos/smartwater/svo_recording/cpp/build/CMakeFiles/rebuild_cache.dir
+/home/smartwater/Documentos/smartwater/svo_recording/cpp/build/CMakeFiles/SVO_Recording.dir
+/home/smartwater/Documentos/smartwater/svo_recording/cpp/build/CMakeFiles/edit_cache.dir
