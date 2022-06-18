@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/smartwater/Documentos/smartwater/svo_recording/cpp/build",
+  "command": "/usr/bin/c++   -I/usr/local/cuda-10.2/include -I/usr/local/zed/include  -g   -std=c++17 -O3 -o CMakeFiles/SVO_Recording.dir/main.o -c /home/smartwater/Documentos/smartwater/svo_recording/cpp/main.cpp",
+  "file": "/home/smartwater/Documentos/smartwater/svo_recording/cpp/main.cpp"
+}
+]
