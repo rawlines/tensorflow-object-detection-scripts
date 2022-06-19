@@ -40,12 +40,11 @@ def main():
         classes = record['image/object/class/label']
         np_arr = classes.values.numpy()
         all_classes = np.append(all_classes, np_arr)
+        print(f'Sample {i+1}: ', end='')
+        for c in np_arr:
+            print(c, end=', ')
 
-        # img_enc = record['image/encoded']
-        # img_enc = img_enc.values.numpy()[0]
-        # io_bytes = io.BytesIO(img_enc)
-        # img = Image.open(io_bytes)
-        # img.save('caca.jpg')
+        print()
 
     all_classes = np.unique(all_classes)
     print(f'Classes ({len(all_classes)}): {all_classes}')
