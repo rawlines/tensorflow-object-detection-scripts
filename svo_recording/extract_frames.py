@@ -33,7 +33,7 @@ parser.add_argument("--motion_coef",
                     required=False,
                     default=0)
 parser.add_argument("--crop_image",
-                    help="Data to crop de image, selects the area to compute norm_coef: <x1,x2,y1,y2>",
+                    help="Data to crop de image, selects the area to compute the motion detection: <x1,x2,y1,y2>",
                     nargs=4,
                     required=False,
                     default=None)
