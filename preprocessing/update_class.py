@@ -26,7 +26,7 @@ parser.add_argument('-n',
 def update_xml_class(xml_file, old_class, new_class):
     tree = ET.parse(xml_file)
     root = tree.getroot()
-    objects = list(root.getiterator('object'))
+    objects = list(root.iter('object'))
 
     for obj in objects:
         name_elem = obj.find("name")
