@@ -3,15 +3,7 @@ import os
 import cv2
 
 import pyzed.sl as sl
-import matplotlib.pyplot as plt
 import numpy as np
-
-from skimage import io
-from skimage import filters
-from skimage.morphology import white_tophat, black_tophat, disk, erosion
-from skimage.metrics import structural_similarity, mean_squared_error
-from skimage.color import rgb2gray
-from skimage.color import rgba2rgb
 
 parser = argparse.ArgumentParser(
     description="Extract frames from from SVO file")
@@ -35,8 +27,8 @@ parser.add_argument("--init_frame",
                     type=int,
                     required=False,
                     default=0)
-parser.add_argument("--norm_coef",
-                    help="Computes Calculates an absolute difference norm or a relative difference norm if coef is greater than computed, then image will be ignored. this metric will be ignored if value is 0",
+parser.add_argument("--motion_coef",
+                    help="Coef to motion threshold detection from 0 to 255",
                     type=float,
                     required=False,
                     default=0)
@@ -45,22 +37,8 @@ parser.add_argument("--crop_image",
                     nargs=4,
                     required=False,
                     default=None)
-parser.add_argument("--reference_image",
-                    help="Image to use as reference for norm_coef, if none, the previous frame will be used",
-                    type=str,
-                    required=False,
-                    default='')
-parser.add_argument("--norm_type",
-                    help="Norm type to use. See cv2 NormTypes: https://docs.opencv.org/3.4/d2/de8/group__core__array.html#gad12cefbcb5291cf958a85b4b67b6149f",
-                    type=int,
-                    required=False,
-                    default=4)
-parser.add_argument("--show_computed_norm",
-                    help="Display computed norm",
-                    action='store_true',
-                    default=False)
-parser.add_argument("--inverse_coef_comparision",
-                    help="When used this flag, the comparison will be if the coef is lower than computed, instead of greater than",
+parser.add_argument("--save_motion_detections",
+                    help="only save detected motion maps",
                     action='store_true',
                     default=False)
 
@@ -71,11 +49,10 @@ init_frame = args.init_frame
 svo_file = args.input
 output_path = args.output_path
 
-norm_coef = args.norm_coef
-show_computed_norm = args.show_computed_norm
-norm_type = args.norm_type
-inverse_coef_comparision = args.inverse_coef_comparision
-do_compute_norm = norm_coef != 0
+motion_coef = args.motion_coef
+save_motion_detections = args.save_motion_detections
+motion_kernel = np.ones((5, 5))
+do_motion_detection = motion_coef != 0
 
 crop_x1 = 0
 crop_x2 = 0
@@ -84,10 +61,6 @@ crop_y2 = 0
 do_crop_image = args.crop_image != None
 if do_crop_image:
     crop_x1, crop_x2, crop_y1, crop_y2 = [int(i) for i in args.crop_image]
-
-reference_image = args.reference_image
-use_reference_image = args.reference_image != ''
-
 
 every_frames = 1
 total_frames = num_frames * every_frames if num_frames > 0 else -1
@@ -122,15 +95,9 @@ if init_frame > 0:
     cam.set_svo_position(init_frame)
 
 def save_image(frame_num, img_data):
-    plt.imsave(f'{output_path}/frame_{frame_num}.jpg', img_data)
+    cv2.imwrite(f'{output_path}/frame_{frame_num}.jpg', img_data)
 
 prev_frame = None
-if use_reference_image:
-    prev_frame = io.imread(reference_image, as_gray=True)
-    if do_crop_image:
-        prev_frame = prev_frame[crop_y1:crop_y2,crop_x1:crop_x2]
-    prev_frame = filters.roberts(prev_frame)
-
 frame = 0
 while frame <= total_frames or total_frames == -1:
     err_code = cam.grab()
@@ -145,25 +112,25 @@ while frame <= total_frames or total_frames == -1:
     # Retrieve data each frame
     cam.retrieve_image(left, view=sl.VIEW.LEFT, resolution=resolution)
     left_np = left.get_data()
-    left_np[..., :3] = left_np[..., 2::-1]
 
-    if do_compute_norm:
+    if do_motion_detection:
         current_frame = left_np[crop_y1:crop_y2,crop_x1:crop_x2] if do_crop_image else left_np
-        current_frame = rgb2gray(rgba2rgb(current_frame))
+        current_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGRA2GRAY)
         
         if prev_frame is not None:
-            norm = cv2.norm(current_frame, prev_frame, norm_type)
-            if show_computed_norm:
-                print(f'norm {init_frame + frame}: {norm}')
+            diff_frame = cv2.absdiff(src1=prev_frame, src2=current_frame)
+            diff_frame = cv2.dilate(diff_frame, motion_kernel, 1)
+            thresh = cv2.threshold(src=diff_frame, thresh=motion_coef, maxval=255, type=cv2.THRESH_BINARY)[1]
 
-            elif norm > norm_coef if inverse_coef_comparision else norm:
-                print(f'norm {init_frame + frame}: {norm}')
+            if save_motion_detections:
+                save_image(init_frame + frame, thresh)
+            elif thresh.any():
+                print(f'Detected movement on frame {init_frame + frame}')
                 save_image(init_frame + frame, left_np)
         else:
             save_image(init_frame + frame, left_np)
 
-        if not use_reference_image:
-            prev_frame = current_frame
+        prev_frame = current_frame
     else: 
         save_image(init_frame + frame, left_np)
     
