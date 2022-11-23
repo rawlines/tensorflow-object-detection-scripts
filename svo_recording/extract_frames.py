@@ -18,17 +18,22 @@ parser.add_argument("-o",
                     type=str,
                     required=True)
 parser.add_argument("--frames",
-                    help="Num of frames to export",
+                    help="Num of frames to export. Set to -1 for exporting all frames. Default -1",
                     type=int,
                     required=False,
                     default=-1)
+parser.add_argument("--every_frames",
+                    help="Every x frames, save the frame. Default 1",
+                    type=int,
+                    required=False,
+                    default=1)
 parser.add_argument("--init_frame",
-                    help="Frame to start counting from",
+                    help="Frame to start counting from. Default 0",
                     type=int,
                     required=False,
                     default=0)
 parser.add_argument("--motion_coef",
-                    help="Coef to motion threshold detection from 0 to 255",
+                    help="Coef to motion threshold detection from 0 to 255, leave to 0 for non using motion detection feature. Default 0",
                     type=float,
                     required=False,
                     default=0)
@@ -44,8 +49,9 @@ parser.add_argument("--save_motion_detections",
 
 args = parser.parse_args()
 
-num_frames = args.frames
 init_frame = args.init_frame
+num_frames = args.frames + init_frame
+every_frames = args.every_frames
 svo_file = args.input
 output_path = args.output_path
 
@@ -62,9 +68,6 @@ do_crop_image = args.crop_image != None
 if do_crop_image:
     crop_x1, crop_x2, crop_y1, crop_y2 = [int(i) for i in args.crop_image]
 
-every_frames = 1
-total_frames = num_frames * every_frames if num_frames > 0 else -1
-
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 
@@ -79,18 +82,17 @@ params.depth_stabilization = True
 
 cam = sl.Camera()
 if not cam.is_opened():
-    print('Opening ZED Camera...')
+    print('Opening SVO File...')
 
 status = cam.open(params)
 if status != sl.ERROR_CODE.SUCCESS:
-    print(repr(status))
+    print(f'Error opening file: {repr(status)}')
     exit()
 
 left = sl.Mat()
+resolution = cam.get_camera_information().camera_resolution
 
-resolution = sl.Resolution(1920, 1080)
-
-print('Reading frames')
+print('Reading frames...')
 if init_frame > 0:
     cam.set_svo_position(init_frame)
 
@@ -98,15 +100,17 @@ def save_image(frame_num, img_data):
     cv2.imwrite(f'{output_path}/frame_{frame_num}.jpg', img_data)
 
 prev_frame = None
-frame = 0
-while frame <= total_frames or total_frames == -1:
+real_frame = init_frame
+saved_frame = init_frame
+while saved_frame <= num_frames or num_frames == -1:
     err_code = cam.grab()
+    real_frame += 1
 
     if err_code != sl.ERROR_CODE.SUCCESS:
         print('No more frames: ', repr(err_code))
         break
 
-    if frame % every_frames != 0:
+    if real_frame % every_frames != 0:
         continue
 
     # Retrieve data each frame
@@ -123,19 +127,20 @@ while frame <= total_frames or total_frames == -1:
             thresh = cv2.threshold(src=diff_frame, thresh=motion_coef, maxval=255, type=cv2.THRESH_BINARY)[1]
 
             if save_motion_detections:
-                save_image(init_frame + frame, thresh)
+                save_image(real_frame, thresh)
             elif thresh.any():
-                print(f'Detected movement on frame {init_frame + frame}')
-                save_image(init_frame + frame, left_np)
+                print(f'Detected movement on frame {real_frame}')
+                save_image(real_frame, left_np)
         else:
-            save_image(init_frame + frame, left_np)
+            save_image(real_frame, left_np)
 
         prev_frame = current_frame
     else: 
-        save_image(init_frame + frame, left_np)
+        save_image(real_frame, left_np)
     
-    print(f'Frame: {frame}/{total_frames}', end='\r')
-    frame += 1
+    print(f'Exported frames: {saved_frame}/{num_frames}', end='\r')
+    saved_frame += 1
+
 
 print('Finish')
 cam.close()
